@@ -1,6 +1,8 @@
 from collections import defaultdict, deque
 import heapq
 from typing import Dict, List, Set, Tuple, Optional
+import matplotlib.pyplot as plt
+import networkx as nx
 
 class Istasyon:
     def __init__(self, idx: str, ad: str, hat: str):
@@ -101,9 +103,9 @@ class MetroAgi:
         
             # Komşuları kontrol et ve kuyruğa ekle
             for komsu, sure in mevcut_istasyon.komsular:  # Komşu istasyonları al (süre önemli!)
-                 yeni_sure = toplam_sure + sure  # Toplam süreyi güncelle
-                 yeni_yol = yol + [komsu]  # Yeni rotaya komşuyu ekle
-                 heapq.heappush(pq, (yeni_sure, id(komsu), komsu, yeni_yol))  # Öncelik kuyruğuna ekle
+                yeni_sure = toplam_sure + sure  # Toplam süreyi güncelle
+                yeni_yol = yol + [komsu]  # Yeni rotaya komşuyu ekle
+                heapq.heappush(pq, (yeni_sure, id(komsu), komsu, yeni_yol))  # Öncelik kuyruğuna ekle
 
         # Eğer hiç rota bulunamazsa None döndür
         return None
@@ -188,3 +190,77 @@ if __name__ == "__main__":
     if sonuc:
         rota, sure = sonuc
         print(f"En hızlı rota ({sure} dakika):", " -> ".join(i.ad for i in rota)) 
+
+
+# GÖRSELLEŞTİRMELER 
+
+def metro_agini_gorsellestir(metro: MetroAgi):
+    """ Metro ağını graf olarak çizer """
+
+    G = nx.Graph()
+
+    # Düğümleri ekleyelim (istasyonları)
+    for istasyon in metro.istasyonlar.values():
+        G.add_node(istasyon.idx, label=istasyon.ad)
+
+    # Kenarları ekleyelim (bağlantılar)
+    for istasyon in metro.istasyonlar.values():
+        for komsu, sure in istasyon.komsular:
+            G.add_edge(istasyon.idx, komsu.idx, weight=sure)
+
+    # Grafiği çizelim
+    plt.figure(figsize=(10, 6))
+    pos = nx.spring_layout(G, seed=42)  # Daha düzenli konumlandırma
+
+    labels = {node: metro.istasyonlar[node].ad for node in G.nodes}
+    edge_labels = {(u, v): G[u][v]['weight'] for u, v in G.edges}
+
+    nx.draw(G, pos, with_labels=True, labels=labels, node_color="skyblue", node_size=2000, font_size=10)
+    nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=9)
+
+    plt.title("Metro Ağı Görselleştirme")
+    plt.show()
+
+# Test için çağırma
+metro_agini_gorsellestir(metro)
+
+
+def rotayi_gorsellestir(metro: MetroAgi, rota: List[Istasyon]):
+    """ Bulunan rotayı grafik üzerinde öne çıkararak gösterir """
+
+    G = nx.Graph()
+
+    # Düğümleri ekleyelim
+    for istasyon in metro.istasyonlar.values():
+        G.add_node(istasyon.idx, label=istasyon.ad)
+
+    # Kenarları ekleyelim
+    for istasyon in metro.istasyonlar.values():
+        for komsu, sure in istasyon.komsular:
+            G.add_edge(istasyon.idx, komsu.idx, weight=sure)
+
+    # Grafiği çizelim
+    plt.figure(figsize=(10, 6))
+    pos = nx.spring_layout(G, seed=42)
+
+    labels = {node: metro.istasyonlar[node].ad for node in G.nodes}
+    edge_labels = {(u, v): G[u][v]['weight'] for u, v in G.edges}
+
+    # Normal ağ çizimi (gri renkte arka plan olacak)
+    nx.draw(G, pos, with_labels=True, labels=labels, node_color="lightgrey", node_size=2000, font_size=10)
+    nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=9)
+
+    # Seçili rotadaki düğümleri ve kenarları vurgula
+    rota_dugumleri = [istasyon.idx for istasyon in rota]
+    rota_kenarlari = [(rota[i].idx, rota[i+1].idx) for i in range(len(rota)-1)]
+
+    nx.draw_networkx_nodes(G, pos, nodelist=rota_dugumleri, node_color="red", node_size=2000)
+    nx.draw_networkx_edges(G, pos, edgelist=rota_kenarlari, edge_color="red", width=2)
+
+    plt.title("Seçili Rota Görselleştirme")
+    plt.show()
+
+# Test için bir rota bulalım ve çizdirelim
+rota = metro.en_az_aktarma_bul("M1", "K4")
+if rota:
+    rotayi_gorsellestir(metro, rota)
